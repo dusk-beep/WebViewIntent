@@ -15,7 +15,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 
@@ -23,14 +22,13 @@ import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
 
-  private static final String[] blacklistAny = {
+  private static final String[] blacklistDomains = {
     "facebook.com",
     "instagram.com",
     "threads.net",
     "twitter.com",
     "x.com",
     "tiktok.com",
-    "reddit.com",
     "snapchat.com",
     "discord.com",
     "pinterest.com",
@@ -48,10 +46,7 @@ public class MainActivity extends AppCompatActivity {
     "reddit.com",
     "safereddit.com",
     "red.artimeslena.eu",
-};
-    private static final String[] blacklistPrefixes = {"","http://","https://","www.","http://www.","https://www."};
-    private static final String[] blacklistStart = {};
-    private static final String[] whitelistStart = {"google.com/url?q="};
+    };
     private WebView webView;
     private ProgressBar progressBar;
     private TextView titleView;
@@ -92,22 +87,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                checkBlacklistAndQuit(uri.toString());
-                String scheme = uri.getScheme();
-                if (scheme != null && (scheme.equals("http") || scheme.equals("https"))) {
-                    view.loadUrl(uri.toString());
-                    return true;
-                }
-                try {
-                    if (uri.toString().startsWith("intent://")) {
-                        Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
-                        startActivity(intent);
-                    } else {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                        startActivity(intent);
-                    }
-                } catch (Exception ignored) {}
-                return true;
+
+              if (checkBlacklist(uri.toString())) {
+                  return true;
+              }
+
+              if (isHttpUrl(uri)) {
+                  return false;
+              }
+
+              return true;
             }
         });
 
@@ -136,50 +125,59 @@ public class MainActivity extends AppCompatActivity {
         handleIntent(intent);
     }
 
-    private void checkBlacklistAndQuit(String url) {
-        url = url.toLowerCase();
-        String urlBeforeQuery = url.split("\\?")[0];
-        for (String black : blacklistAny) {
-            black = black.toLowerCase();
-            if (urlBeforeQuery.contains(black)) {
-                showBlacklistToastAndQuit();
-                return;
+      private boolean isBlacklisted(String url) {
+        Uri uri = Uri.parse(url);
+        String host = uri.getHost();
+
+        if (host == null) {
+            return false;
+        }
+
+        host = host.toLowerCase();
+
+        for (String domain : blacklistDomains) {
+            domain = domain.toLowerCase();
+
+            if (host.equals(domain) || host.endsWith("." + domain)) {
+                return true;
             }
         }
-        for (String prefix : blacklistPrefixes) {
-            for (String blackStart : blacklistStart) {
-                boolean whitelisted = false;
-                for (String whiteStart : whitelistStart) {
-                    String white = (prefix + whiteStart).toLowerCase();
-                    if (url.startsWith(white)) {
-                        whitelisted = true;
-                        break;
-                    }
-                }
-                if (whitelisted) continue;
-                String black = (prefix + blackStart).toLowerCase();
-                if (url.startsWith(black)) {
-                    showBlacklistToastAndQuit();
-                    return;
-                }
-            }
-        }
+
+        return false;
     }
 
-    private void showBlacklistToastAndQuit() {
-        Toast.makeText(this, "Blacklisted activity!", Toast.LENGTH_LONG).show();
-        System.exit(0);
+    private boolean checkBlacklist(String url) {
+        if (isBlacklisted(url)) {
+            showBlacklistToast();
+            return true;
+        }
+
+        return false;
     }
 
-    private void handleIntent(Intent intent) {
-        Uri data = intent.getData();
-        if (data != null) {
-            checkBlacklistAndQuit(data.toString());
-            webView.loadUrl(data.toString());
-        } else {
-            webView.loadUrl("https://example.com");
-        }
+    private void showBlacklistToast() {
+      Toast.makeText(this, "Blacklisted site", Toast.LENGTH_LONG).show();
+      finishAndRemoveTask();
     }
+
+  private boolean isHttpUrl(Uri uri) {
+    String scheme = uri.getScheme();
+    return "http".equals(scheme) || "https".equals(scheme);
+  }
+
+  private void handleIntent(Intent intent) {
+    Uri data = intent.getData();
+
+    if (data != null) {
+        if (!isHttpUrl(data) || checkBlacklist(data.toString())) {
+            return;
+        }
+
+        webView.loadUrl(data.toString());
+    } else {
+        webView.loadUrl("about:blank");
+    }
+}
 
     @SuppressLint("GestureBackNavigation")
     @Override
