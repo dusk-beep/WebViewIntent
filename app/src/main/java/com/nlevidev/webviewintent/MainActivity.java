@@ -23,7 +23,32 @@ import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String[] blacklistAny = {};
+  private static final String[] blacklistAny = {
+    "facebook.com",
+    "instagram.com",
+    "threads.net",
+    "twitter.com",
+    "x.com",
+    "tiktok.com",
+    "reddit.com",
+    "snapchat.com",
+    "discord.com",
+    "pinterest.com",
+    "tumblr.com",
+    "linkedin.com".
+    "apkvision.org",
+    "nxbrew.net",
+    "ziperto.com",
+    "yts.gg",
+    "yts.bz",
+    "anilist.co",
+    "eden-emu.dev",
+    "youtube.com",
+    "m.youtube.com",
+    "reddit.com",
+    "safereddit.com",
+    "red.artimeslena.eu",
+};
     private static final String[] blacklistPrefixes = {"","http://","https://","www.","http://www.","https://www."};
     private static final String[] blacklistStart = {};
     private static final String[] whitelistStart = {"google.com/url?q="};
