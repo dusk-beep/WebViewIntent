@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     "discord.com",
     "pinterest.com",
     "tumblr.com",
-    "linkedin.com".
+    "linkedin.com",
     "apkvision.org",
     "nxbrew.net",
     "ziperto.com",
