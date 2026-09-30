@@ -16,6 +16,7 @@ import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 
@@ -106,6 +107,18 @@ public class MainActivity extends AppCompatActivity {
         });
 
         handleIntent(getIntent());
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackPressed() {
+            if (webView.canGoBack()) {
+                webView.goBack();
+            } else {
+                finish();
+            }
+        }
+    });
+    }
     }
 
     private void updateTitle(String url) {
@@ -185,15 +198,5 @@ public class MainActivity extends AppCompatActivity {
       } else {
           webView.loadUrl("about:blank");
       }
-    }
-
-    @SuppressLint("GestureBackNavigation")
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
     }
 }
