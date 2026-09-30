@@ -119,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
         }
     });
     }
-    }
 
     private void updateTitle(String url) {
         currentUrl = url;
