@@ -13,16 +13,17 @@ import android.widget.TextView;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 
-import java.util.Objects;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-  private static final String[] blacklistDomains = {
+    private static final Set<String> BLACKLIST_DOMAINS = Set.of(
     "facebook.com",
     "instagram.com",
     "threads.net",
@@ -42,11 +43,12 @@ public class MainActivity extends AppCompatActivity {
     "anilist.co",
     "eden-emu.dev",
     "youtube.com",
-    "m.youtube.com",
     "reddit.com",
     "safereddit.com",
-    "red.artimeslena.eu",
-    };
+    "red.artimeslena.eu"
+    "gamebounty.world"
+  );
+
     private WebView webView;
     private ProgressBar progressBar;
     private TextView titleView;
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-        Objects.requireNonNull(getSupportActionBar()).hide();
+        getSupportActionBar().hide();
 
         titleView = findViewById(R.id.actionbar_title);
         titleView.setOnClickListener(v -> copyUrlToClipboard());
@@ -67,37 +69,39 @@ public class MainActivity extends AppCompatActivity {
 
         webView = findViewById(R.id.webview);
 
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(true);
+        WebSettings settings = webView.getSettings();
+
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setSupportMultipleWindows(false);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
 
         webView.setWebViewClient(new WebViewClient() {
 
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 updateTitle(url);
-                if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+                progressBar.setVisibility(View.VISIBLE);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 updateTitle(url);
-                if (progressBar != null) progressBar.setVisibility(View.GONE);
+                progressBar.setVisibility(View.GONE);
             }
 
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri uri = request.getUrl();
+          @Override
+          public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+              Uri uri = request.getUrl();
 
-              if (checkBlacklist(uri.toString())) {
+              if (checkBlacklist(uri)) {
                   return true;
               }
 
-              if (isHttpUrl(uri)) {
-                  return false;
-              }
-
-              return true;
-            }
+              return !isHttpUrl(uri);
+          }
         });
 
         handleIntent(getIntent());
@@ -105,16 +109,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateTitle(String url) {
         currentUrl = url;
-        if (titleView != null) {
-            titleView.setText(url);
-        }
+        titleView.setText(url);
     }
 
     private void copyUrlToClipboard() {
-        if (currentUrl == null || currentUrl.isEmpty()) return;
+        if (currentUrl.isEmpty()) {
+            return;
+        }
 
         ClipboardManager clipboard =
                 (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
         ClipData clip = ClipData.newPlainText("URL", currentUrl);
         clipboard.setPrimaryClip(clip);
     }
@@ -122,23 +127,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        setIntent(intent);
         handleIntent(intent);
     }
 
-      private boolean isBlacklisted(String url) {
-        Uri uri = Uri.parse(url);
+    private boolean isBlacklisted(Uri uri) {
         String host = uri.getHost();
 
         if (host == null) {
             return false;
         }
 
-        host = host.toLowerCase();
+        host = host.toLowerCase(Locale.ROOT);
 
-        for (String domain : blacklistDomains) {
-            domain = domain.toLowerCase();
+        if (BLACKLIST_DOMAINS.contains(host)) {
+            return true;
+        }
 
-            if (host.equals(domain) || host.endsWith("." + domain)) {
+        for (String domain : BLACKLIST_DOMAINS) {
+            if (host.endsWith("." + domain)) {
                 return true;
             }
         }
@@ -146,8 +153,8 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private boolean checkBlacklist(String url) {
-        if (isBlacklisted(url)) {
+    private boolean checkBlacklist(Uri uri) {
+        if (isBlacklisted(uri)) {
             showBlacklistToast();
             return true;
         }
@@ -165,19 +172,19 @@ public class MainActivity extends AppCompatActivity {
     return "http".equals(scheme) || "https".equals(scheme);
   }
 
-  private void handleIntent(Intent intent) {
-    Uri data = intent.getData();
+    private void handleIntent(Intent intent) {
+      Uri data = intent.getData();
 
-    if (data != null) {
-        if (!isHttpUrl(data) || checkBlacklist(data.toString())) {
-            return;
-        }
+      if (data != null) {
+          if (!isHttpUrl(data) || checkBlacklist(data)) {
+              return;
+          }
 
-        webView.loadUrl(data.toString());
-    } else {
-        webView.loadUrl("about:blank");
+          webView.loadUrl(data.toString());
+      } else {
+          webView.loadUrl("about:blank");
+      }
     }
-}
 
     @SuppressLint("GestureBackNavigation")
     @Override
