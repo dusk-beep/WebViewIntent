@@ -45,8 +45,8 @@ public class MainActivity extends AppCompatActivity {
     "youtube.com",
     "reddit.com",
     "safereddit.com",
-    "red.artimeslena.eu"
-    "gamebounty.world"
+    "red.artimeslena.eu",
+    "gamebounty.world",
   );
 
     private WebView webView;
