@@ -14,7 +14,9 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
+import android.webkit.JavascriptInterface;
 import android.widget.Toast;
+import android.widget.PopupMenu;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,7 +27,53 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final Set<String> BLACKLIST_DOMAINS = Set.of(
+  private void showLinkMenu(String url) {
+    if (url == null || url.isEmpty()) {
+      return;
+    }
+
+    PopupMenu menu = new PopupMenu(this, titleView);
+    menu.getMenu().add("Copy link address");
+
+    menu.setOnMenuItemClickListener(item -> {
+      ClipboardManager clipboard =
+    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+      clipboard.setPrimaryClip(
+        ClipData.newPlainText("URL", url)
+      );
+
+      Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
+      return true;
+    });
+
+    menu.show();
+  }
+
+  private class LinkHandler {
+    @JavascriptInterface
+    public void onLongPress(String url) {
+      runOnUiThread(() -> showLinkMenu(url));
+    }
+  }
+
+  private void installLinkLongPressHandler() {
+    String js = "(function() {" +
+    "if (window.__linkLongPressInstalled) return;" +
+    "window.__linkLongPressInstalled = true;" +
+    "document.addEventListener('contextmenu', function(e) {" +
+    "var a = e.target.closest('a[href]');" +
+    "if (a) {" +
+    "e.preventDefault();" +
+    "LinkHandler.onLongPress(a.href);" +
+    "}" +
+    "}, true);" +
+    "})();";
+
+    webView.evaluateJavascript(js, null);
+  }
+
+  private static final Set<String> BLACKLIST_DOMAINS = Set.of(
     "facebook.com",
     "instagram.com",
     "threads.net",
@@ -51,151 +99,154 @@ public class MainActivity extends AppCompatActivity {
     "gamebounty.world"
   );
 
-    private WebView webView;
-    private ProgressBar progressBar;
-    private TextView titleView;
-    private String currentUrl = "";
+  private WebView webView;
+  private ProgressBar progressBar;
+  private TextView titleView;
+  private String currentUrl = "";
 
-    @SuppressLint("SetJavaScriptEnabled")
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+  @SuppressLint("SetJavaScriptEnabled")
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
 
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-        getSupportActionBar().hide();
+    WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+    getSupportActionBar().hide();
 
-        titleView = findViewById(R.id.actionbar_title);
-        titleView.setOnClickListener(v -> copyUrlToClipboard());
-        progressBar = findViewById(R.id.actionbar_progress);
+    titleView = findViewById(R.id.actionbar_title);
+    titleView.setOnClickListener(v -> copyUrlToClipboard());
+    progressBar = findViewById(R.id.actionbar_progress);
 
-        webView = findViewById(R.id.webview);
+    webView = findViewById(R.id.webview);
 
-        WebSettings settings = webView.getSettings();
+    WebSettings settings = webView.getSettings();
 
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
-        settings.setSupportMultipleWindows(false);
-        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+    settings.setJavaScriptEnabled(true);
+    settings.setDomStorageEnabled(true);
+    settings.setAllowFileAccess(false);
+    settings.setAllowContentAccess(false);
+    settings.setSupportMultipleWindows(false);
+    settings.setJavaScriptCanOpenWindowsAutomatically(false);
 
-        webView.setWebViewClient(new WebViewClient() {
+    webView.addJavascriptInterface(new LinkHandler(), "LinkHandler");
 
-            @Override
-            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
-                updateTitle(url);
-                progressBar.setVisibility(View.VISIBLE);
-            }
+    webView.setWebViewClient(new WebViewClient() {
 
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                updateTitle(url);
-                progressBar.setVisibility(View.GONE);
-            }
+      @Override
+      public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+        updateTitle(url);
+        progressBar.setVisibility(View.VISIBLE);
+      }
 
-          @Override
-          public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-              Uri uri = request.getUrl();
+      @Override
+      public void onPageFinished(WebView view, String url) {
+        updateTitle(url);
+        progressBar.setVisibility(View.GONE);
+        installLinkLongPressHandler();
+      }
 
-              if (checkBlacklist(uri)) {
-                  return true;
-              }
+      @Override
+      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        Uri uri = request.getUrl();
 
-              return !isHttpUrl(uri);
-          }
-        });
-
-        handleIntent(getIntent());
-
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-        @Override
-        public void handleOnBackPressed() {
-            if (webView.canGoBack()) {
-                webView.goBack();
-            } else {
-                finish();
-            }
+        if (checkBlacklist(uri)) {
+          return true;
         }
+
+        return !isHttpUrl(uri);
+      }
     });
-    }
 
-    private void updateTitle(String url) {
-        currentUrl = url;
-        titleView.setText(url);
-    }
+    handleIntent(getIntent());
 
-    private void copyUrlToClipboard() {
-        if (currentUrl.isEmpty()) {
-            return;
+    getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+      @Override
+      public void handleOnBackPressed() {
+        if (webView.canGoBack()) {
+          webView.goBack();
+        } else {
+          finish();
         }
+      }
+    });
+  }
 
-        ClipboardManager clipboard =
-                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+  private void updateTitle(String url) {
+    currentUrl = url;
+    titleView.setText(url);
+  }
 
-        ClipData clip = ClipData.newPlainText("URL", currentUrl);
-        clipboard.setPrimaryClip(clip);
+  private void copyUrlToClipboard() {
+    if (currentUrl.isEmpty()) {
+      return;
     }
 
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        handleIntent(intent);
+    ClipboardManager clipboard =
+  (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+    ClipData clip = ClipData.newPlainText("URL", currentUrl);
+    clipboard.setPrimaryClip(clip);
+  }
+
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    handleIntent(intent);
+  }
+
+  private boolean isBlacklisted(Uri uri) {
+    String host = uri.getHost();
+
+    if (host == null) {
+      return false;
     }
 
-    private boolean isBlacklisted(Uri uri) {
-        String host = uri.getHost();
+    host = host.toLowerCase(Locale.ROOT);
 
-        if (host == null) {
-            return false;
-        }
-
-        host = host.toLowerCase(Locale.ROOT);
-
-        if (BLACKLIST_DOMAINS.contains(host)) {
-            return true;
-        }
-
-        for (String domain : BLACKLIST_DOMAINS) {
-            if (host.endsWith("." + domain)) {
-                return true;
-            }
-        }
-
-        return false;
+    if (BLACKLIST_DOMAINS.contains(host)) {
+      return true;
     }
 
-    private boolean checkBlacklist(Uri uri) {
-        if (isBlacklisted(uri)) {
-            showBlacklistToast();
-            return true;
-        }
-
-        return false;
+    for (String domain : BLACKLIST_DOMAINS) {
+      if (host.endsWith("." + domain)) {
+        return true;
+      }
     }
 
-    private void showBlacklistToast() {
-      Toast.makeText(this, "Blacklisted site", Toast.LENGTH_LONG).show();
-      finishAndRemoveTask();
+    return false;
+  }
+
+  private boolean checkBlacklist(Uri uri) {
+    if (isBlacklisted(uri)) {
+      showBlacklistToast();
+      return true;
     }
+
+    return false;
+  }
+
+  private void showBlacklistToast() {
+    Toast.makeText(this, "Blacklisted site", Toast.LENGTH_LONG).show();
+    finishAndRemoveTask();
+  }
 
   private boolean isHttpUrl(Uri uri) {
     String scheme = uri.getScheme();
     return "http".equals(scheme) || "https".equals(scheme);
   }
 
-    private void handleIntent(Intent intent) {
-      Uri data = intent.getData();
+  private void handleIntent(Intent intent) {
+    Uri data = intent.getData();
 
-      if (data != null) {
-          if (!isHttpUrl(data) || checkBlacklist(data)) {
-              return;
-          }
-
-          webView.loadUrl(data.toString());
-      } else {
-          webView.loadUrl("about:blank");
+    if (data != null) {
+      if (!isHttpUrl(data) || checkBlacklist(data)) {
+        return;
       }
+
+      webView.loadUrl(data.toString());
+    } else {
+      webView.loadUrl("about:blank");
     }
+  }
 }
