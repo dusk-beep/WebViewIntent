@@ -95,7 +95,6 @@ public class MainActivity extends AppCompatActivity {
     "yts.gg",
     "yts.bz",
     "anilist.co",
-    "eden-emu.dev",
     "youtube.com",
     "reddit.com",
     "safereddit.com",
