@@ -1,16 +1,16 @@
 name: CI
 
 on:
-push:
-pull_request:
-workflow_dispatch:
+  push:
+    pull_request:
+      workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+  runs-on: ubuntu-latest
 
 steps:
   - name: Checkout
