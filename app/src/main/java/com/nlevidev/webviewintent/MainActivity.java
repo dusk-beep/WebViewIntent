@@ -58,17 +58,21 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void installLinkLongPressHandler() {
-    String js = "(function() {" +
-    "if (window.__linkLongPressInstalled) return;" +
-    "window.__linkLongPressInstalled = true;" +
-    "document.addEventListener('contextmenu', function(e) {" +
-    "var a = e.target.closest('a[href]');" +
-    "if (a) {" +
-    "e.preventDefault();" +
-    "LinkHandler.onLongPress(a.href);" +
-    "}" +
-    "}, true);" +
-    "})();";
+    String js = """
+    (function() {
+    if (window.__linkLongPressInstalled) return;
+
+    window.__linkLongPressInstalled = true;
+
+    document.addEventListener('contextmenu', function(e) {
+    var a = e.target.closest('a[href]');
+    if (!a) return;
+
+    e.preventDefault();
+    LinkHandler.onLongPress(a.href);
+    }, true);
+    })();
+    """;
 
     webView.evaluateJavascript(js, null);
   }
