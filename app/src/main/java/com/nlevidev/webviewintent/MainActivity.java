@@ -34,20 +34,44 @@ public class MainActivity extends AppCompatActivity {
 
     PopupMenu menu = new PopupMenu(this, titleView);
     menu.getMenu().add("Copy link address");
+    menu.getMenu().add("Share link");
 
     menu.setOnMenuItemClickListener(item -> {
-      ClipboardManager clipboard =
-    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+      String action = item.getTitle().toString();
 
-      clipboard.setPrimaryClip(
-        ClipData.newPlainText("URL", url)
-      );
+      if (action.equals("Copy link address")) {
+        ClipboardManager clipboard =
+      (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 
-      Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
+        clipboard.setPrimaryClip(
+          ClipData.newPlainText("URL", url)
+        );
+
+        Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show();
+      } else if (action.equals("Share link")) {
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TEXT, url);
+
+        startActivity(Intent.createChooser(intent, "Share URL"));
+      }
+
       return true;
     });
 
     menu.show();
+  }
+
+  private void shareUrl() {
+    if (currentUrl.isEmpty()) {
+      return;
+    }
+
+    Intent intent = new Intent(Intent.ACTION_SEND);
+    intent.setType("text/plain");
+    intent.putExtra(Intent.EXTRA_TEXT, currentUrl);
+
+    startActivity(Intent.createChooser(intent, "Share URL"));
   }
 
   private class LinkHandler {
@@ -118,6 +142,11 @@ public class MainActivity extends AppCompatActivity {
 
     titleView = findViewById(R.id.actionbar_title);
     titleView.setOnClickListener(v -> copyUrlToClipboard());
+
+    titleView.setOnLongClickListener(v -> {
+      showLinkMenu(currentUrl);
+      return true;
+    });
     progressBar = findViewById(R.id.actionbar_progress);
 
     webView = findViewById(R.id.webview);
